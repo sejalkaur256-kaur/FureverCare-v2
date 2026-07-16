@@ -1,32 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { AuthUser, Role, getUser } from "./auth";
+import { useEffect } from "react";
+import { Role } from "./auth";
 
 export function useRequireAuth(expectedRole: Role) {
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const [user, setUserState] = useState<AuthUser | null>(null);
-  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    const u = getUser();
-    if (!u) {
+    if (status === "unauthenticated") {
       router.replace(`/login?role=${expectedRole}`);
-      return;
     }
-    setUserState(u);
-    setChecked(true);
+  }, [status, expectedRole, router]);
 
-    function onAuthChange() {
-      setUserState(getUser());
-    }
-    window.addEventListener("FureverCare-auth-updated", onAuthChange);
-    return () =>
-      window.removeEventListener("FureverCare-auth-updated", onAuthChange);
-  }, [expectedRole, router]);
+  const user = session?.user as any;
+  const roleMismatch = user?.role && user.role !== expectedRole;
 
-  const roleMismatch = !!user && user.role !== expectedRole;
-
-  return { user, checked, roleMismatch };
+  return { 
+    user: user || null, 
+    checked: status !== "loading", 
+    roleMismatch 
+  };
 }

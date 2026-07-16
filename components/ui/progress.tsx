@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 export function Progress({
   value,
   className,
-  colorClass = "bg-brand-500",
+  colorClass = "bg-primary",
 }: {
   value: number;
   className?: string;

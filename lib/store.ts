@@ -1,56 +1,39 @@
 "use client";
 
 import { RescueRequest, RescueStatus } from "./types";
+import { submitRescueRequest, updateRescueStatus, fetchRescueRequests as serverFetch } from "./actions";
 
-const KEY = "FureverCare_requests_v1";
+// Cache for synchronous getter compatibility
+let localCache: RescueRequest[] = [];
 
-function readAll(): RescueRequest[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as RescueRequest[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeAll(items: RescueRequest[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(items));
-  window.dispatchEvent(new Event("FureverCare-store-updated"));
-}
-
-export function saveRequest(req: RescueRequest) {
-  const all = readAll();
-  const idx = all.findIndex((r) => r.id === req.id);
-  if (idx >= 0) all[idx] = req;
-  else all.unshift(req);
-  writeAll(all);
-}
-
-export function getRequest(id: string): RescueRequest | undefined {
-  return readAll().find((r) => r.id === id);
+export async function fetchAllRequests() {
+  const data = await serverFetch();
+  localCache = data as any;
+  return localCache;
 }
 
 export function listRequests(): RescueRequest[] {
-  return readAll();
+  return localCache;
 }
 
-export function updateStatus(id: string, status: RescueStatus) {
-  const all = readAll();
-  const req = all.find((r) => r.id === id);
-  if (!req) return;
-  req.status = status;
-  req.timeline.push({ status, time: new Date().toISOString() });
-  writeAll(all);
+export function getRequest(id: string): RescueRequest | undefined {
+  return localCache.find((r) => r.id === id);
 }
 
-export function patchRequest(id: string, patch: Partial<RescueRequest>) {
-  const all = readAll();
-  const idx = all.findIndex((r) => r.id === id);
-  if (idx < 0) return;
-  all[idx] = { ...all[idx], ...patch };
-  writeAll(all);
+export async function saveRequest(req: RescueRequest) {
+  await submitRescueRequest(req);
+  // We trigger event to tell UI to refetch
+  window.dispatchEvent(new Event("FureverCare-store-updated"));
+}
+
+export async function updateStatus(id: string, status: RescueStatus) {
+  await updateRescueStatus(id, status);
+  window.dispatchEvent(new Event("FureverCare-store-updated"));
+}
+
+export async function patchRequest(id: string, patch: Partial<RescueRequest>) {
+  await updateRescueStatus(id, patch.status as RescueStatus, patch);
+  window.dispatchEvent(new Event("FureverCare-store-updated"));
 }
 
 export const STATUS_ORDER: RescueStatus[] = [

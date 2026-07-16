@@ -1,0 +1,48 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   // "citizen" | "ngo" | "volunteer"
+  orgName      String?  // for ngos
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model RescueRequest {
+  id           String   @id @default(uuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  reporterId   String?  // nullable if anonymous, but we can link to User
+
+  description  String
+  address      String
+  status       String   // RescueStatus
+  reporterName String
+
+  // SQLite doesn't natively support Prisma's Json type, so we store these as serialized strings
+  imageDataUrl String?  
+  location     String   // serialized GeoPoint
+  analysis     String   // serialized AIAnalysis
+  ngo          String?  // serialized NGO
+  volunteer    String?  // serialized Volunteer
+
+  timeline     TimelineEvent[]
+}
+
+model TimelineEvent {
+  id              String        @id @default(uuid())
+  rescueRequestId String
+  status          String
+  time            DateTime      @default(now())
+  rescueRequest   RescueRequest @relation(fields: [rescueRequestId], references: [id], onDelete: Cascade)
+}
